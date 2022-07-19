@@ -39,10 +39,10 @@ outcomes$sex[grepl("Men",outcomes$out_pop)]<-"Men"
 # Create a dataset with only continuous, longitudinal studies ------------------
 # TODO: verify why filtering on longitudinal IDs returns a larger set than filtering the whole dataset
 data <- outcomes %>%
-  mutate(continuous_out = !is.na(sd)) %>%  # continuous outcomes
-  filter(continuous_out == 1) %>%
-  mutate(main_analysis = population == study_population) %>%
-  filter(main_analysis == 1) %>%  # studies for main analysis, not subgroups
+  mutate(is_continuous_outcome = !is.na(sd)) %>%  # continuous outcomes
+  filter(is_continuous_outcome == 1) %>%
+  mutate(is_main_analysis = population == study_population) %>%
+  filter(is_main_analysis == 1) %>%  # studies for main analysis, not subgroups
   filter(is_longitudinal == 1) %>%  # studies marked as longitudinal
   group_by(record_id) %>%
   filter(n_distinct(timepoint) > 1) %>%  # studies with 2 or more unique timepoints
@@ -63,91 +63,98 @@ smd <- calculate_smd(data) %>%
   ungroup() %>%
   select(record_id, s2, d, var, starts_with("cov"))
 
-##keep useful variables from the longicont
-#sublongicont<-longicont %>% dplyr::select(record_id , doi,author_1,year,population ,
-#                                          study_population , country , condition , scale , timepoint ,
-#                                          n_timepoints , is_longitudinal , is_prepandemic , sample_size ,
-#                                          is_binary , score ,  sd ,  y , sey , stringency , days_after_first ,
-#                                          days_after_pandemic,confirmed_cumulative , deaths_cumulative ,
-#                                          confirmed_avg , deaths_avg , cumulative_stringency ,country_population_2019,
-#                                          confirmed_per_100000 , deaths_per_100000 ,confirmed_avg_per_100000 , deaths_avg_per_100000,
-#                                          gdp_per_capita_2019 , gini_2019 , effect_direction , rob_info_bias.x , num_invited.x ,
-#                                          num_assessed.x , response_rate.x , rob_is_target_pop.x , rob_non_bias.x ,
-#                                          stpop , out_pop , sex , mainanalysis , continuousout ,  pop0_name ,
-#                                          tag_num_timepoints , study_design , method_recruitment , method_collection ,
-#                                          multi_country , pop0_central_age, pop0_sample_size , pop0_mean_med ,
-#                                          pop0_sd , pop0_min_age , pop0_max_age , pop0_percent_female ,
-#                                          pop_percent_phys_con , pop_percent_psych_con ,  pop_percent_covid19 ,
-#                                          pop_ethnicity , pop_ethnicity_other, ESI,CHIndex,School_closing,
-#                                          Workplace_closing,Stay_home_req,Restrictions_movement,Facial_cover)
-#
-##create the full data for analysis. Exclude columns with dupicate names in SMDs
-#if(sum(range(longicont$record_id-SMDs$record_id))==0){
-#  dataset <- cbind.data.frame(sublongicont, dplyr::select(SMDs,-"record_id",-"population",-"scale"))}
-### sort the dataset
-#dataset=arrange(dataset, record_id, condition, scale, timepoint)
-#dataset$exact_days_after_first<-dataset$days_after_first
-#dataset$days_after_first[dataset$days_after_first<0]=0
-#
-#dataset<-filter(dataset,!(record_id==121277 & condition=="Social anxiety"))# one study has two different measures of anxiety (social anxiety and GAD)
-#dataset<-filter(dataset,!(record_id==121277 & condition=="Panic/Somatic symptoms"))
-#
-####Create covariates----
-#dataset$condition[dataset$condition %in% c("Social anxiety","Generalized Anxiety Disorder", "Panic/Somatic symptoms")]<-"Anxiety"
-#dataset$effect_direction[is.na(dataset$effect_direction)]<-1
-#dataset$d<-dataset$effect_direction*dataset$d ## changing the effect direction!
-#dataset$giniMinusmin<-dataset$gini_2019-min(dataset$gini_2019,na.rm=T)
-#dataset$gdpDiv10000minusmin<-dataset$gdp_per_capita_2019/10000-min(dataset$gdp_per_capita_2019/10000,na.rm=T)
-#dataset$study_design01<-dataset$study_design-1
-#dataset$scaled.score<-(dataset$score)/sqrt(dataset$s2)
-#dataset$logcumulative_stringency<-log(dataset$cumulative_stringency+1)
-#dataset$sqrtcumulative_stringency<-sqrt(dataset$cumulative_stringency)
-#dataset$logconfirmed_cumulative100k=log(dataset$confirmed_cumulative/dataset$country_population_2019*100000+1)
-#dataset$logdeaths_cumulative100k=log(dataset$deaths_cumulative/dataset$country_population_2019*100000+1)
-#dataset$sqrtconfirmed_cumulative100k=sqrt(dataset$confirmed_cumulative/dataset$country_population_2019*100000)
-#dataset$sqrtdeaths_cumulative100k=sqrt(dataset$deaths_cumulative/dataset$country_population_2019*100000)
-#dataset$days_after_pandemic[is.na(dataset$days_after_pandemic)]<-dataset$days_after_first[is.na(dataset$days_after_pandemic)]
-##create RoB variables
-#repfun<-function(x){
-#  x[x=="High risk"]<-2
-#  x[x=="Low risk"]<-0
-#  x[x=="Unclear risk"]<-1
-#  as.numeric(x)}
-#numRoB<-as.data.frame(
-#  apply(cbind(dataset$rob_is_target_pop.x,dataset$rob_info_bias.x,dataset$rob_non_bias.x),2,repfun))
-#names(numRoB)<-c("RoBRepres","RoBInfoBias","RoBNonResp")
-#numRoB$record_id=dataset$record_id
-#numRoB$condition=dataset$condition
-#numRoB$sample_size=dataset$sample_size
-#numRoB=ungroup(numRoB %>% group_by(record_id,condition)
-#               %>% group_modify(~ mutate(.x,RoBRepStudy=max(RoBRepres)))
-#               %>% group_modify(~ mutate(.x,RoBInfoStudy=max(RoBInfoBias)))
-#               %>% group_modify(~ mutate(.x,RoBNonRespStudy=max(RoBNonResp)))
-#               %>% group_modify(~ mutate(.x,meanStudySS=mean(sample_size))))
-#
-#numRoBdich<-as.data.frame(t(apply(select(numRoB,RoBRepStudy,RoBInfoStudy,RoBNonRespStudy),1,function(x) as.numeric(x>0))))
-#names(numRoBdich)<-c("RoBRepresdich","RoBInfoBiasdich","RoBNonRespdich")
-#dataset<-cbind.data.frame(dataset,numRoB %>% select(RoBRepStudy,RoBInfoStudy,RoBNonRespStudy,meanStudySS),numRoBdich)
-#dataset$USA<-as.numeric(dataset$country=="United States")
-#dataset$CHINA<-as.numeric(dataset$country=="China")
-##recode funny names
-#dataset$author_1[dataset$author_1=="Br√§scher"]<-"Braescher"
-#dataset$author_1[dataset$author_1=="Gim√©nez-Das√≠"]<-"Gimenez-Dasi"
-#dataset$author_1[dataset$author_1=="Sch√§fer"]<-"Schaefer"
-#dataset$author_1[dataset$author_1=="Sch√ºtzwohl"]<-"Schuetzwohl"
-#dataset$author_1[dataset$author_1=="S√∏nderskov"]<-"Sonderskov"
-#
-#dataset$ESI[is.na(dataset$ESI) & dataset$is_prepandemic==1]<-0
-#dataset$CHIndex[is.na(dataset$CHIndex)&  dataset$is_prepandemic==1]<-0
-#dataset$School_closing[is.na(dataset$School_closing)&  dataset$is_prepandemic==1]<-0
-#dataset$Workplace_closing[is.na(dataset$Workplace_closing)&  dataset$is_prepandemic==1]<-0
-#dataset$Restrictions_movement[is.na(dataset$Restrictions_movement)&  dataset$is_prepandemic==1]<-0
-#dataset$Stay_home_req[is.na(dataset$Stay_home_req)&  dataset$is_prepandemic==1]<-0
-#dataset$Facial_cover[is.na(dataset$Facial_cover)&  dataset$is_prepandemic==1]<-0
-#
-#dataset$authoryear<-paste(dataset$author_1,dataset$year)
-#
-#rm(SMDs,sublongicont,grouped,numRoB,numRoBdich, longicont)
-#
-#
-#write.csv(dataset,"MHCOVIDdataset.csv" )
+# Keep useful columns, and join SMD data
+data <- data %>%
+  rename(country = country.x,
+         rob_info_bias = rob_info_bias.x,
+         num_invited = num_invited.x,
+         num_assessed = num_assessed.x,
+         response_rate = response_rate.x,
+         rob_is_target_pop = rob_is_target_pop.x,
+         rob_non_bias = rob_non_bias.x) %>%
+  select(record_id, doi,author_1,year,population,
+         study_population, country, condition, scale, timepoint,
+         n_timepoints, is_longitudinal, is_prepandemic, sample_size,
+         is_binary, score, sd, y, sey, stringency, days_after_first,
+         days_after_pandemic,confirmed_cumulative, deaths_cumulative,
+         confirmed_avg, deaths_avg, cumulative_stringency,country_population_2019,
+         confirmed_per_100000, deaths_per_100000,confirmed_avg_per_100000, deaths_avg_per_100000,
+         gdp_per_capita_2019, gini_2019, effect_direction, rob_info_bias, num_invited,
+         num_assessed, response_rate, rob_is_target_pop, rob_non_bias,
+         stpop, out_pop, sex, is_main_analysis, is_continuous_outcome, pop0_name,
+         tag_num_timepoints, study_design, method_recruitment, method_collection,
+         multi_country, pop0_central_age, pop0_sample_size, pop0_mean_med,
+         pop0_sd, pop0_min_age, pop0_max_age, pop0_percent_female,
+         pop_percent_phys_con, pop_percent_psych_con, pop_percent_covid19,
+         pop_ethnicity, pop_ethnicity_other, ESI, CHIndex, School_closing,
+         Workplace_closing, Stay_home_req, Restrictions_movement, Facial_cover)
+data.smd <- cbind(data, select(smd, -c("record_id")))
+data.smd <- data.smd %>%
+  arrange(record_id, condition, scale, timepoint) %>%
+  filter(!(record_id == 121277 & (condition == "Social anxiety" | condition == "Panic/Somatic symptoms")))
+
+# Create covariates ------------------------------------------------------------
+anxiety.conditions <- c("Social anxiety", "Generalized Anxiety Disorder",
+                        "Panic/somatic symptoms", "Panic disorder")
+dataset <- data.smd %>%
+  mutate(effect_direction = ifelse(is.na(effect_direction), 1, effect_direction)) %>%
+  mutate(d = effect_direction * d) %>%
+  mutate(scaled_score = score / s2) %>%
+  # Transform existing covariates for specific analyses
+  mutate(exact_days_after_first = days_after_first) %>%
+  mutate(days_after_first = ifelse(days_after_first < 0, 0, days_after_first)) %>%
+  mutate(condition = ifelse(condition %in% anxiety.conditions, "Anxiety", condition)) %>%
+  mutate(gini_minus_min = gini_2019 - min(gini_2019)) %>%
+  mutate(gdp_div_10000_minus_min = gdp_per_capita_2019 / 10000 - min(gdp_per_capita_2019 / 10000)) %>%
+  mutate(log_cumulative_stringency = log(cumulative_stringency + 1)) %>%
+  mutate(sqrt_cumulative_stringency = sqrt(cumulative_stringency)) %>%
+  mutate(logconfirmed_cumulative100k = log(confirmed_cumulative / country_population_2019 * 100000 + 1)) %>%
+  mutate(logdeaths_cumulative100k = log(deaths_cumulative / country_population_2019 * 100000 + 1)) %>%
+  mutate(sqrtconfirmed_cumulative100k = sqrt(confirmed_cumulative / country_population_2019 * 100000)) %>%
+  mutate(sqrtdeaths_cumulative100k = sqrt(deaths_cumulative / country_population_2019 * 100000)) %>%
+  mutate(days_after_pandemic = ifelse(is.na(days_after_pandemic), days_after_first, days_after_pandemic)) %>%
+  # Indicators for study's country
+  mutate(is_china = country == "China") %>%
+  mutate(is_usa = country == "United States") %>%
+  # For stringency measures, pre-pandemic timepoints should be 0 and not NA
+  mutate(ESI = ifelse(is_prepandemic == 1, 0, ESI)) %>%
+  mutate(CHIndex = ifelse(is_prepandemic == 1, 0, CHIndex)) %>%
+  mutate(School_closing = ifelse(is_prepandemic == 1, 0, School_closing)) %>%
+  mutate(Workplace_closing = ifelse(is_prepandemic == 1, 0, Workplace_closing)) %>%
+  mutate(Restrictions_movement = ifelse(is_prepandemic == 1, 0, Restrictions_movement)) %>%
+  mutate(Stay_home_req = ifelse(is_prepandemic == 1, 0, Stay_home_req)) %>%
+  mutate(Facial_cover = ifelse(is_prepandemic == 1, 0, Facial_cover))
+
+# TODO: does study_design need to be re-coded on [0, 1] ?
+
+# Re-encode RoB responses as numerics
+rob.map <- data.frame(value = c(0:2), row.names = c("Low risk", "Unclear risk", "High risk"))
+rob <- dataset %>%
+  select(c(record_id, condition, sample_size, rob_info_bias, rob_is_target_pop, rob_non_bias)) %>%
+  mutate(rob_info_bias_num = rob.map[rob_info_bias, "value"]) %>%
+  mutate(rob_is_target_pop_num = rob.map[rob_is_target_pop, "value"]) %>%
+  mutate(rob_non_bias_num = rob.map[rob_non_bias, "value"]) %>%
+  ungroup() %>%
+  group_by(record_id, condition) %>%
+  # set the risk of bias as the maximum entered for any condition within a study
+  group_modify(~ mutate(.x, rob_info_bias_num = max(rob_info_bias_num))) %>%
+  group_modify(~ mutate(.x, rob_non_bias_num = max(rob_non_bias_num))) %>%
+  group_modify(~ mutate(.x, rob_is_target_pop_num = max(rob_is_target_pop_num))) %>%
+  # get mean sample size within study
+  group_modify(~ mutate(.x, mean_study_sample_size = mean(sample_size))) %>%
+  ungroup() %>%
+  select(c(ends_with("num"), mean_study_sample_size))
+# Bind back to original data.frame
+dataset <- cbind(dataset, rob)
+
+# Correct some ASCII character encoding errors (likely caused by Excel)
+dataset$author_1[dataset$author_1=="Br√§scher"]<-"Braescher"
+dataset$author_1[dataset$author_1=="Gim√©nez-Das√≠"]<-"Gimenez-Dasi"
+dataset$author_1[dataset$author_1=="Sch√§fer"]<-"Schaefer"
+dataset$author_1[dataset$author_1=="Sch√ºtzwohl"]<-"Schuetzwohl"
+dataset$author_1[dataset$author_1=="S√∏nderskov"]<-"Sonderskov"
+dataset <- dataset %>%
+  mutate(author_year = paste(author_1, year))
+
+# Write clean dataset to disk --------------------------------------------------
+write.csv(dataset, "dataset_alex.csv" )
