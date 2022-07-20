@@ -104,54 +104,90 @@ forest(meta.prepost.other,
        sort = days_after_first)
 dev.off()
 
-####### Perform BAYESIAN pre-during analysis for  Anxiety, Depression ------
-#source("Make pre-post Bayesian meta-analysis functions.R")
-#
-#prepostJAGSdata<-makeprepostJAGSdata(data=dataprepostB,studyid=record_id, y=d,var,covlabel="cov", corr=0.6)
-#prepostJAGSdata$Y1<-prepostJAGSdata$Y
-#prepostJAGSresults<-jags(data=prepostJAGSdata,inits=NULL,parameters.to.save = c("mu","muMH", "predSMD", "tau", "tauMH","predSMDMH"),model.file = prepostMHmodelRE,
-#                         n.chains=3,n.iter = 50000,n.burnin = 10000,DIC=F,n.thin = 3)
-#
-#mus=as.data.frame(t(dplyr::select(as.data.frame(t(prepostJAGSresults$BUGSoutput$summary)),starts_with("mu"))))
-#taus=as.data.frame(t(dplyr::select(as.data.frame(t(prepostJAGSresults$BUGSoutput$summary)),starts_with("tau"))))
-#predSMDs=as.data.frame(t(dplyr::select(as.data.frame(t(prepostJAGSresults$BUGSoutput$summary)),starts_with("predSMD"))))
-#prepostresults=rbind(mus,predSMDs,taus) %>% select(`50%`,`2.5%`,`97.5%`) %>% rename("Posterior Median"=`50%`, "lowCI"=`2.5%`,"highCI" =`97.5%` )
-#rm(taus,mus,predSMDs,d1,d2)
-#
-####Trick forest.meta to show the  the Bayesian results and create Figure 2a----
-#
-#meta.prepost.daaB<-meta.prepost.daa
-#
-#meta.prepost.daaB$TE.random <- prepostresults[3,1]
-#meta.prepost.daaB$lower.random <- prepostresults[3,2]
-#meta.prepost.daaB$upper.random <- prepostresults[3,3]
-#meta.prepost.daaB$lower.predict <- prepostresults[6,2]
-#meta.prepost.daaB$upper.predict <- prepostresults[6,3]
-#
-#meta.prepost.daaB$TE.random.w<- prepostresults[1:2,1]
-#meta.prepost.daaB$lower.random.w <- prepostresults[1:2,2]
-#meta.prepost.daaB$upper.random.w <- prepostresults[1:3,3]
-#meta.prepost.daaB$lower.predict.w <- prepostresults[4:5,2]
-#meta.prepost.daaB$upper.predict.w <- prepostresults[4:5,3]
-#
-#meta.prepost.daaB$tau.w<-prepostresults[7:8,1]
-#meta.prepost.daaB$tau<-prepostresults[9,1]
-#
-#meta.prepost.daaB$lower.tau.w<-prepostresults[7:8,2]
-#meta.prepost.daaB$upper.tau.w<-prepostresults[7:8,3]
-#meta.prepost.daaB$lower.tau<-prepostresults[9,2]
-#meta.prepost.daaB$upper.tau<-prepostresults[9,3]
-#
-#pdf(paste("Figure 2a Pre-post forest plot Anxiety and Depression",".pdf",sep=""), width = 11, height = 9)
-#forest(meta.prepost.daaB,test.overall=F, prediction=T, comb.common=F,print.byvar=T, overall =T,
-#       title="Post-Pre SMD",pooled.total=F, xlab=paste("SMD"),smlab="SMD",print.pval.Q=F,
-#       plotwidth="6cm",print.I2=F,lwd=1,fontsize=7,fs.test.effect.subgroup=0,
-#       fs.hetstat=7, just="left",addrow=F,
-#       leftcols = c("studlab","country","population","sample_size","pop0_percent_female", "rob_info_bias.x","rob_non_bias.x","days_after_first"),
-#       leftlabs=c("Study","Country", "Population","Sample size","Fraction females","Information bias","Non-reponse bias","Days in pandemic"),
-#       colgap="0.01cm",col.by="black",hetlab="",calcwidth.subgroup=T,print.tau=T,print.tau.ci=T,
-#       text.random.w=sapply(meta.prepost.daa$k.w, paste, "observations"), sort=days_after_first)
-#
-#dev.off()
-#
-#rm(d3,dataprepost, prepostJAGSdata,prepostJAGSresults, meta.prepost.daa,meta.prepost.daaB,meta.prepost.other,meta.prepost.psych)
+# Perform Bayesian pre-during analysis -----------------------------------------
+source("Make pre-post Bayesian meta-analysis functions.R")
+
+data.prepost.jags <- MakePrepostJagsData(data = data.prepost.daa,
+                                         studyid = record_id,
+                                         y = d,
+                                         var = var,
+                                         covlabel = "cov",
+                                         corr = 0.6)
+data.prepost.jags$Y1 <- data.prepost.jags$Y
+prepost.jags.results <- jags(data=data.prepost.jags,
+                             inits=NULL,
+                             parameters.to.save = c("mu","muMH", "predSMD", "tau", "tauMH","predSMDMH"),
+                             model.file = prepostMHmodelRE,
+                             n.chains = 3,
+                             n.iter = 50000,
+                             n.burnin = 10000,
+                             DIC = FALSE,
+                             n.thin = 3)
+
+# Extract useful metrics from JAGS output
+summary.t <- as.data.frame(t(prepost.jags.results$BUGSoutput$summary))
+mus <- as.data.frame(t(select(summary.t, starts_with("mu"))))
+taus <- as.data.frame(t(select(summary.t, starts_with("tau"))))
+pred.smds <- as.data.frame(t(select(summary.t, starts_with("predSMD"))))
+prepost.results <- rbind(mus, pred.smds, taus) %>%
+  select(`50%`, `2.5%`, `97.5%`) %>%
+  rename("Posterior Median"=`50%`, "lowCI"=`2.5%`, "highCI" =`97.5%`)
+rm(summary.t, mus, taus, pred.smds)
+
+# Modify metagen output object such that forest is able to correctly plot it
+meta.prepost.daa$TE.random.w     <- prepostresults[1:2, 1]
+meta.prepost.daa$lower.random.w  <- prepostresults[1:2, 2]
+meta.prepost.daa$upper.random.w  <- prepostresults[1:3, 3]
+meta.prepost.daa$TE.random       <- prepostresults[3, 1]
+meta.prepost.daa$lower.random    <- prepostresults[3, 2]
+meta.prepost.daa$upper.random    <- prepostresults[3, 3]
+meta.prepost.daa$lower.predict.w <- prepostresults[4:5, 2]
+meta.prepost.daa$upper.predict.w <- prepostresults[4:5, 3]
+meta.prepost.daa$lower.predict   <- prepostresults[6, 2]
+meta.prepost.daa$upper.predict   <- prepostresults[6, 3]
+meta.prepost.daa$tau.w           <- prepostresults[7:8, 1]
+meta.prepost.daa$lower.tau.w     <- prepostresults[7:8, 2]
+meta.prepost.daa$upper.tau.w     <- prepostresults[7:8, 3]
+meta.prepost.daa$tau             <- prepostresults[9, 1]
+meta.prepost.daa$lower.tau       <- prepostresults[9, 2]
+meta.prepost.daa$upper.tau       <- prepostresults[9, 3]
+
+pdf(paste("Figure 2a Pre-post forest plot Anxiety and Depression",".pdf",sep=""), width = 11, height = 9)
+cols.forest <- c("studlab", "country", "population", "sample_size",
+                 "pop0_percent_female", "rob_info_bias", "rob_non_bias",
+                 "days_after_first")
+labs.forest <- c("Study", "Country", "Population", "Sample size ", "Fraction females ",
+                 "Information bias ", "Non-reponse bias ", "Days in pandemic")
+forest(meta.prepost.daa,
+       test.overall = FALSE,
+       prediction = TRUE,
+       comb.common = FALSE,
+       print.byvar = TRUE,
+       overall  = TRUE,
+       title = "Post-Pre SMD",
+       pooled.total = FALSE,
+       xlab = paste("SMD"),
+       smlab = "SMD",
+       print.pval.Q = FALSE,
+       plotwidth = "6cm",
+       print.I2 = FALSE,
+       lwd = 1,
+       fontsize = 7,
+       fs.test.effect.subgroup = 0,
+       fs.hetstat = 7,
+       just = "left",
+       addrow = FALSE,
+       leftcols = cols.forest,
+       leftlabs = labs.forest,
+       colgap = "0.01cm",
+       col.by = "black",
+       hetlab = "",
+       calcwidth.subgroup = TRUE,
+       print.tau = TRUE,
+       print.tau.ci = TRUE,
+       text.random.w = sapply(meta.prepost.daa$k.w, paste, "observations"),
+       sort = days_after_first)
+
+dev.off()
+# TODO: clean up *all* unused data objects
+rm(data.prepost, data.prepost.jags,prepost.jags.results, meta.prepost.daa, meta.prepost.other, meta.prepost.psych)
