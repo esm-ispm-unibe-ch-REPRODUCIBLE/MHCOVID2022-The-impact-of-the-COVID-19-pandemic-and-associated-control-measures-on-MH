@@ -37,7 +37,6 @@ outcomes$sex[grepl("Men",outcomes$out_pop)]<-"Men"
 
 
 # Create a dataset with only continuous, longitudinal studies ------------------
-# TODO: verify why filtering on longitudinal IDs returns a larger set than filtering the whole dataset
 data <- outcomes %>%
   mutate(is_continuous_outcome = !is.na(sd)) %>%  # continuous outcomes
   filter(is_continuous_outcome == 1) %>%
@@ -100,6 +99,7 @@ dataset <- data.smd %>%
   mutate(effect_direction = ifelse(is.na(effect_direction), 1, effect_direction)) %>%
   mutate(d = effect_direction * d) %>%
   mutate(scaled_score = score / s2) %>%
+  mutate(study_design_01 = study_design - 1) %>%
   # Transform existing covariates for specific analyses
   mutate(exact_days_after_first = days_after_first) %>%
   mutate(days_after_first = ifelse(days_after_first < 0, 0, days_after_first)) %>%
@@ -125,9 +125,7 @@ dataset <- data.smd %>%
   mutate(Stay_home_req = ifelse(is_prepandemic == 1, 0, Stay_home_req)) %>%
   mutate(Facial_cover = ifelse(is_prepandemic == 1, 0, Facial_cover))
 
-# TODO: does study_design need to be re-coded on [0, 1] ?
-
-# Re-encode RoB responses as numerics
+# Recode RoB responses as numerics
 rob.map <- data.frame(value = c(0:2), row.names = c("Low risk", "Unclear risk", "High risk"))
 rob <- dataset %>%
   select(c(record_id, condition, sample_size, rob_info_bias, rob_is_target_pop, rob_non_bias)) %>%
