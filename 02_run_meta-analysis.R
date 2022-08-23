@@ -135,22 +135,22 @@ prepost.results <- rbind(mus, pred.smds, taus) %>%
 rm(summary.t, mus, taus, pred.smds)
 
 # Modify metagen output object such that forest is able to correctly plot it
-meta.prepost.daa$TE.random.w     <- prepostresults[1:2, 1]
-meta.prepost.daa$lower.random.w  <- prepostresults[1:2, 2]
-meta.prepost.daa$upper.random.w  <- prepostresults[1:3, 3]
-meta.prepost.daa$TE.random       <- prepostresults[3, 1]
-meta.prepost.daa$lower.random    <- prepostresults[3, 2]
-meta.prepost.daa$upper.random    <- prepostresults[3, 3]
-meta.prepost.daa$lower.predict.w <- prepostresults[4:5, 2]
-meta.prepost.daa$upper.predict.w <- prepostresults[4:5, 3]
-meta.prepost.daa$lower.predict   <- prepostresults[6, 2]
-meta.prepost.daa$upper.predict   <- prepostresults[6, 3]
-meta.prepost.daa$tau.w           <- prepostresults[7:8, 1]
-meta.prepost.daa$lower.tau.w     <- prepostresults[7:8, 2]
-meta.prepost.daa$upper.tau.w     <- prepostresults[7:8, 3]
-meta.prepost.daa$tau             <- prepostresults[9, 1]
-meta.prepost.daa$lower.tau       <- prepostresults[9, 2]
-meta.prepost.daa$upper.tau       <- prepostresults[9, 3]
+meta.prepost.daa$TE.random.w     <- prepost.results[1:2, 1]
+meta.prepost.daa$lower.random.w  <- prepost.results[1:2, 2]
+meta.prepost.daa$upper.random.w  <- prepost.results[1:3, 3]
+meta.prepost.daa$TE.random       <- prepost.results[3, 1]
+meta.prepost.daa$lower.random    <- prepost.results[3, 2]
+meta.prepost.daa$upper.random    <- prepost.results[3, 3]
+meta.prepost.daa$lower.predict.w <- prepost.results[4:5, 2]
+meta.prepost.daa$upper.predict.w <- prepost.results[4:5, 3]
+meta.prepost.daa$lower.predict   <- prepost.results[6, 2]
+meta.prepost.daa$upper.predict   <- prepost.results[6, 3]
+meta.prepost.daa$tau.w           <- prepost.results[7:8, 1]
+meta.prepost.daa$lower.tau.w     <- prepost.results[7:8, 2]
+meta.prepost.daa$upper.tau.w     <- prepost.results[7:8, 3]
+meta.prepost.daa$tau             <- prepost.results[9, 1]
+meta.prepost.daa$lower.tau       <- prepost.results[9, 2]
+meta.prepost.daa$upper.tau       <- prepost.results[9, 3]
 
 pdf(paste("Figure 2a Pre-post forest plot Anxiety and Depression",".pdf",sep=""), width = 11, height = 9)
 cols.forest <- c("studlab", "country", "population", "sample_size",

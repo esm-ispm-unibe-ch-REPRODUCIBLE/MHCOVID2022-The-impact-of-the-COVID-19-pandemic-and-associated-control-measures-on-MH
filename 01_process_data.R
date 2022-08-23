@@ -155,4 +155,4 @@ dataset <- dataset %>%
   mutate(author_year = paste(author_1, year))
 
 # Write clean dataset to disk --------------------------------------------------
-write.csv(dataset, "dataset_alex.csv" )
+write.csv(dataset, "mhcovid_dataset.csv" )

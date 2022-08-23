@@ -47,11 +47,6 @@ print(metareg.prepost.age)
 # log_confirmed_cumulative_100k: cumulative number of confirmed cases per 100,000 inhabitants (log-transformed)
 # log_deaths_cumulative_100k: cumulative number of deaths per 100,000 inhabitants (log-transformed)
 #-------------------------------------------------------------------------------
-# TODO: check with Georgia what this is
-# TODO: if required, move to 01_process_data.R
-data.prepost.psych <- data.prepost.psych %>%
-  mutate(OldBmeasurement = sqrt(-exact_days_after_first)) %>%
-  mutate(OldBmeasurement = ifelse(is.na(OldBmeasurement), 0, OldBmeasurement))
 # Example usage: Depression and Anxiety ----------------------------------------
 # Prepare the JAGS data for the Age covariate
 data.prepost.jags.age <- MakeMultipleConditionJagsData(data = data.prepost.daa,
